@@ -337,7 +337,13 @@ export function serveNineP(root: DirNode, opts: { hostname?: string; port: numbe
         const fid = r.u32();
         const f = st.fids.get(fid);
         if (!f) return rerror(tag, "unknown fid");
-        return msg(Rstat, tag, statOf(f.node));
+        // Rstat carries the stat as a counted byte string: a u16
+        // length prefix, then the stat itself. Omitting the prefix
+        // went unnoticed because our own client never uses Tstat;
+        // plan9port's 9p (ls/stat) caught it: convM2D then parses
+        // the stat's inner size field as the outer length.
+        const sb = statOf(f.node);
+        return msg(Rstat, tag, new Writer().u16(sb.length).raw(sb).buf());
       }
       case Twstat:
         return rerror(tag, "wstat not supported");
